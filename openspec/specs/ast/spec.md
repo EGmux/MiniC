@@ -55,7 +55,7 @@ The AST SHALL include expression nodes for arithmetic, relational, and boolean o
 #### Scenario: Boolean operators
 
 - **WHEN** a boolean expression is represented
-- **THEN** it SHALL support `and`, `or`, and unary `not`
+- **THEN** it SHALL support `and`, `or`, and unary `!`
 
 #### Scenario: Expression recursion
 

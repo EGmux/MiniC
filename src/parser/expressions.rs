@@ -109,12 +109,12 @@ fn relational(input: &str) -> IResult<&str, Expr> {
     Ok((rest, acc))
 }
 
-/// Logical not: optional `not` applied to relational.
+/// Logical not: optional `!` applied to relational.
 fn logical_not(input: &str) -> IResult<&str, Expr> {
     alt((
         map(
             pair(
-                preceded(multispace0, tag("not")),
+                preceded(multispace0, char('!')),
                 preceded(multispace0, logical_not),
             ),
             |(_, e)| Expr::Not(Box::new(e)),

@@ -25,6 +25,13 @@ The expression parser SHALL produce `ir::ast::Expr` values. It SHALL use the exi
 - **WHEN** an identifier is parsed as an expression
 - **THEN** it SHALL be represented as `Expr::Ident(String)`
 
+#### Scenario: Complex expression with parentheses and operators
+
+- **WHEN** the input is `a >= (pi * r * r) + epsilon`
+- **THEN** the parser SHALL succeed and return an `Expr::Ge` with:
+  - Left: `Expr::Ident("a")`
+  - Right: `Expr::Add` of `(pi * r * r)` and `epsilon` (parenthesized multiplication, then addition)
+
 ---
 
 ### Requirement: Arithmetic expressions
@@ -71,11 +78,11 @@ The parser SHALL recognize relational expressions with operators `==`, `!=`, `<`
 
 ### Requirement: Boolean expressions
 
-The parser SHALL recognize boolean expressions with operators `and`, `or`, and unary `not`. Precedence SHALL be: `not` (highest), then `and`, then `or` (lowest). `and` and `or` SHALL be left-associative.
+The parser SHALL recognize boolean expressions with operators `and`, `or`, and unary `!`. Precedence SHALL be: `!` (highest), then `and`, then `or` (lowest). `and` and `or` SHALL be left-associative.
 
 #### Scenario: Boolean operators
 
-- **WHEN** the input is `true and false` or `a or b` or `not x`
+- **WHEN** the input is `true and false` or `a or b` or `!x`
 - **THEN** the parser SHALL succeed and return the corresponding `And`, `Or`, or `Not` expression
 
 #### Scenario: Boolean vs relational precedence

@@ -192,13 +192,35 @@ fn test_relational() {
 }
 
 #[test]
+fn test_complex_expression() {
+    // a >= (pi * r * r) + epsilon — area comparison with tolerance
+    let result = expression("a >= (pi * r * r) + epsilon").unwrap().1;
+    match &result {
+        Expr::Ge(left, right) => {
+            assert_eq!(left.as_ref(), &Expr::Ident("a".to_string()));
+            match right.as_ref() {
+                Expr::Add(add_left, add_right) => {
+                    assert_eq!(add_right.as_ref(), &Expr::Ident("epsilon".to_string()));
+                    match add_left.as_ref() {
+                        Expr::Mul(_, _) => {} // (pi * r * r) — parenthesized multiplication
+                        _ => panic!("expected Mul for (pi * r * r)"),
+                    }
+                }
+                _ => panic!("expected Add for (pi * r * r) + epsilon"),
+            }
+        }
+        _ => panic!("expected Ge, got {:?}", result),
+    }
+}
+
+#[test]
 fn test_boolean_expr() {
     assert!(matches!(
         expression("true and false").unwrap().1,
         Expr::And(_, _)
     ));
     assert!(matches!(
-        expression("not x").unwrap().1,
+        expression("!x").unwrap().1,
         Expr::Not(_)
     ));
     assert!(matches!(
