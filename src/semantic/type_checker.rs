@@ -33,14 +33,19 @@ impl std::fmt::Display for TypeError {
 impl std::error::Error for TypeError {}
 
 /// Type-check a program. Returns `Ok(CheckedProgram)` if well-typed, `Err(TypeError)` on first error.
-/// Requires a `main` function as the entry point.
+/// Requires a `main` function as the entry point with signature `void main()`.
 pub fn type_check(program: &UncheckedProgram) -> Result<CheckedProgram, TypeError> {
-    let has_main = program
-        .functions
-        .iter()
-        .any(|f| f.name == "main");
-    if !has_main {
-        return Err(TypeError::new("program must have a main function"));
+    let main_fn = program.functions.iter().find(|f| f.name == "main");
+    match main_fn {
+        None => return Err(TypeError::new("program must have a main function")),
+        Some(f) => {
+            if f.return_type != Type::Unit {
+                return Err(TypeError::new("main function must return void"));
+            }
+            if !f.params.is_empty() {
+                return Err(TypeError::new("main function must have no parameters"));
+            }
+        }
     }
     let mut env = Environment::<Type>::new();
     for f in &program.functions {
@@ -63,7 +68,7 @@ fn type_check_fun_decl(
     for (name, ty) in &f.params {
         env.add_binding(name.clone(), ty.clone());
     }
-    let body = type_check_stmt(&f.body, env)?;
+    let body = type_check_stmt(&f.body, env, &f.return_type)?;
     Ok(FunDecl {
         name: f.name.clone(),
         params: f.params.clone(),
@@ -75,6 +80,7 @@ fn type_check_fun_decl(
 fn type_check_stmt(
     s: &UncheckedStmt,
     env: &mut Environment<Type>,
+    expected_return: &Type,
 ) -> Result<CheckedStmt, TypeError> {
     let stmt = match &s.stmt {
         Statement::Decl { name, ty, init } => {
@@ -107,10 +113,12 @@ fn type_check_stmt(
             }
         }
         Statement::Block { seq } => {
+            let snapshot = env.snapshot_bindings();
             let mut checked = Vec::new();
             for st in seq {
-                checked.push(type_check_stmt(st, env)?);
+                checked.push(type_check_stmt(st, env, expected_return)?);
             }
+            env.restore_bindings(snapshot);
             Statement::Block { seq: checked }
         }
         Statement::Call { name, args } => {
@@ -137,10 +145,10 @@ fn type_check_stmt(
                     cond_checked.ty
                 )));
             }
-            let then_checked = type_check_stmt(then_branch, env)?;
+            let then_checked = type_check_stmt(then_branch, env, expected_return)?;
             let else_checked = else_branch
                 .as_ref()
-                .map(|e| type_check_stmt(e, env))
+                .map(|e| type_check_stmt(e, env, expected_return))
                 .transpose()?;
             Statement::If {
                 cond: Box::new(cond_checked),
@@ -156,12 +164,36 @@ fn type_check_stmt(
                     cond_checked.ty
                 )));
             }
-            let body_checked = type_check_stmt(body, env)?;
+            let body_checked = type_check_stmt(body, env, expected_return)?;
             Statement::While {
                 cond: Box::new(cond_checked),
                 body: Box::new(body_checked),
             }
         }
+        Statement::Return(expr) => match expr {
+            None => {
+                if *expected_return != Type::Unit {
+                    return Err(TypeError::new(format!(
+                        "non-void function must return a value of type {:?}",
+                        expected_return
+                    )));
+                }
+                Statement::Return(None)
+            }
+            Some(e) => {
+                if *expected_return == Type::Unit {
+                    return Err(TypeError::new("void function must not return a value"));
+                }
+                let checked = type_check_expr_to_typed(e, env)?;
+                if !types_compatible(&checked.ty, expected_return) {
+                    return Err(TypeError::new(format!(
+                        "return type mismatch: expected {:?}, got {:?}",
+                        expected_return, checked.ty
+                    )));
+                }
+                Statement::Return(Some(Box::new(checked)))
+            }
+        },
     };
     Ok(StatementD {
         stmt,
@@ -371,9 +403,26 @@ fn type_check_expr(
             let rt = type_check_expr(r, env)?;
             numeric_binop_result(&lt, &rt)
         }
-        Expr::Eq(l, r) | Expr::Ne(l, r) | Expr::Lt(l, r) | Expr::Le(l, r) | Expr::Gt(l, r) | Expr::Ge(l, r) => {
-            let _lt = type_check_expr(l, env)?;
-            let _rt = type_check_expr(r, env)?;
+        Expr::Eq(l, r) | Expr::Ne(l, r) => {
+            let lt = type_check_expr(l, env)?;
+            let rt = type_check_expr(r, env)?;
+            if !types_compatible(&lt, &rt) {
+                return Err(TypeError::new(format!(
+                    "equality operands must have compatible types, got {:?} and {:?}",
+                    lt, rt
+                )));
+            }
+            Ok(Type::Bool)
+        }
+        Expr::Lt(l, r) | Expr::Le(l, r) | Expr::Gt(l, r) | Expr::Ge(l, r) => {
+            let lt = type_check_expr(l, env)?;
+            let rt = type_check_expr(r, env)?;
+            if !is_numeric(&lt) || !is_numeric(&rt) {
+                return Err(TypeError::new(format!(
+                    "ordering comparison requires numeric operands, got {:?} and {:?}",
+                    lt, rt
+                )));
+            }
             Ok(Type::Bool)
         }
         Expr::Not(inner) => {
@@ -468,6 +517,10 @@ fn numeric_binop_result(l: &Type, r: &Type) -> Result<Type, TypeError> {
         }
         _ => Err(TypeError::new("arithmetic operands must be Int or Float")),
     }
+}
+
+fn is_numeric(ty: &Type) -> bool {
+    matches!(ty, Type::Int | Type::Float)
 }
 
 fn types_compatible(a: &Type, b: &Type) -> bool {

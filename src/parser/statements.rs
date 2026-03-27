@@ -18,11 +18,12 @@ fn wrap(s: Statement<()>) -> UncheckedStmt {
     StatementD { stmt: s, ty: () }
 }
 
-/// Parse any statement: if | while | call | block | decl | assignment.
+/// Parse any statement: return | if | while | call | block | decl | assignment.
 pub fn statement(input: &str) -> IResult<&str, UncheckedStmt> {
     preceded(
         multispace0,
         alt((
+            return_statement,
             if_statement,
             while_statement,
             call_statement,
@@ -31,6 +32,13 @@ pub fn statement(input: &str) -> IResult<&str, UncheckedStmt> {
             assignment,
         )),
     )(input)
+}
+
+/// Parse a return statement: `return [expr]`.
+fn return_statement(input: &str) -> IResult<&str, UncheckedStmt> {
+    let (rest, _) = preceded(multispace0, tag("return"))(input)?;
+    let (rest, expr) = opt(preceded(multispace0, expression))(rest)?;
+    Ok((rest, wrap(Statement::Return(expr.map(Box::new)))))
 }
 
 /// Parse a variable declaration: `Type ident = expr`. Must come before assignment.

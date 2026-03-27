@@ -91,3 +91,71 @@ fn test_type_check_redeclaration() {
     assert!(result.is_err());
     assert!(result.unwrap_err().message.contains("redeclaration"));
 }
+
+#[test]
+fn test_type_check_relational_type_mismatch() {
+    let result = parse_and_type_check("void main() bool r = \"hello\" == 42");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().message.contains("compatible"));
+}
+
+#[test]
+fn test_type_check_ordering_requires_numeric() {
+    let result = parse_and_type_check("void main() bool r = true < false");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().message.contains("numeric"));
+}
+
+#[test]
+fn test_type_check_equality_same_type_ok() {
+    let result = parse_and_type_check("void main() bool r = 1 == 2");
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_type_check_main_non_void_return() {
+    let result = parse_and_type_check("int main() int x = 1");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().message.contains("void"));
+}
+
+#[test]
+fn test_type_check_main_with_params() {
+    let result = parse_and_type_check("void main(int x) int y = 1");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().message.contains("parameters"));
+}
+
+#[test]
+fn test_type_check_return_void_ok() {
+    let result = parse_and_type_check("void main() { int x = 1; return }");
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_type_check_return_value_in_void_fn() {
+    let result = parse_and_type_check("void main() return 1");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().message.contains("void function must not return a value"));
+}
+
+#[test]
+fn test_type_check_return_correct_type() {
+    let result = parse_and_type_check("int foo() return 42\nvoid main() int x = 1");
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_type_check_return_wrong_type() {
+    let result = parse_and_type_check("int foo() return true\nvoid main() int x = 1");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().message.contains("return type mismatch"));
+}
+
+#[test]
+fn test_type_check_block_scoping() {
+    // variable declared inside a block should not be visible after the block
+    let result = parse_and_type_check("void main() { { int x = 1 }; x = 2 }");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().message.contains("undeclared"));
+}

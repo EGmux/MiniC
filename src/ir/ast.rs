@@ -105,6 +105,8 @@ pub enum Statement<Ty> {
         cond: Box<ExprD<Ty>>,
         body: Box<StatementD<Ty>>,
     },
+    /// Return statement: `return [expr]`.
+    Return(Option<Box<ExprD<Ty>>>),
 }
 
 /// A typed parameter: (name, type).

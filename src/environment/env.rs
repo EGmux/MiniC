@@ -39,6 +39,19 @@ impl<T> Environment<T> {
         self.bindings.clear();
     }
 
+    /// Snapshot current variable bindings. Used to implement block scoping.
+    pub fn snapshot_bindings(&self) -> HashMap<String, T>
+    where
+        T: Clone,
+    {
+        self.bindings.clone()
+    }
+
+    /// Restore variable bindings from a snapshot. Used on block exit.
+    pub fn restore_bindings(&mut self, snapshot: HashMap<String, T>) {
+        self.bindings = snapshot;
+    }
+
     pub fn add_function_declaration(&mut self, name: String, function: CheckedFunDecl) {
         self.function_declarations.insert(name, function);
     }
