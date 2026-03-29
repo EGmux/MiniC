@@ -25,8 +25,135 @@ void main() {
 ```bash
 cargo build          # compile the project
 cargo test           # run the full test suite (129 tests)
-cargo run            # run the sample main program
 ```
+
+The binary accepts two commands:
+
+```
+minic --check <file.minic>   # parse + type-check only
+minic --run   <file.minic>   # parse + type-check + interpret
+```
+
+---
+
+## CLI Usage
+
+### Running a valid program
+
+Save the following as `hello.minic`:
+
+```c
+void main() {
+  str name = "Alice";
+  print(name)
+}
+```
+
+```bash
+$ minic --run hello.minic
+Alice
+```
+
+### Checking a program without running it
+
+`--check` stops after the type checker. Useful for validating a program before
+committing to run it:
+
+```bash
+$ minic --check hello.minic
+'hello.minic' is well-typed.
+```
+
+### Syntax errors
+
+The parser catches malformed programs before any type checking occurs. Here are
+two examples.
+
+**Missing closing brace:**
+
+```c
+void main() {
+  int x = 1;
+  print(x)
+```
+
+```bash
+$ minic --check missing_brace.minic
+Parse error: ...
+```
+
+**Using `def` instead of a type for a function (not valid MiniC syntax):**
+
+```c
+def greet(str name) {
+  print(name)
+}
+
+void main() {
+  greet("Bob")
+}
+```
+
+```bash
+$ minic --check bad_keyword.minic
+Parse error: ...
+```
+
+### Type errors
+
+Type errors are caught after parsing, before any code runs.
+
+**Assigning a string to an int variable:**
+
+```c
+void main() {
+  int x = "hello"
+}
+```
+
+```bash
+$ minic --check type_mismatch.minic
+Type error: declaration of x: expected Int, got Str
+```
+
+**Calling a function with the wrong argument type:**
+
+```c
+int double(int n) {
+  return n * 2
+}
+
+void main() {
+  int result = double("hello")
+}
+```
+
+```bash
+$ minic --check wrong_arg.minic
+Type error: argument 1 to double: expected Int, got Str
+```
+
+**Using a boolean where an integer is expected:**
+
+```c
+void main() {
+  int x = 10;
+  int y = x + true
+}
+```
+
+```bash
+$ minic --check bool_in_arithmetic.minic
+Type error: arithmetic operands must be Int or Float
+```
+
+### Exit codes
+
+| Situation | Exit code |
+|-----------|-----------|
+| Success | `0` |
+| Parse error, type error, or runtime error | `1` |
+| Wrong arguments or missing file | `1` |
 
 ---
 
