@@ -1,69 +1,64 @@
 # MiniC
 
-**[→ Short summary of MiniC](doc/summary.md)** — language overview, types, and pipeline.
+MiniC is a small C-like programming language implemented in Rust. It is
+designed as a teaching tool: the entire pipeline — parser, type checker, and
+interpreter — is intentionally small so you can read and understand every part
+of it. A complete MiniC program looks like this:
+
+```c
+int factorial(int n)
+  if n <= 1 then
+    return 1
+  else
+    return n * factorial(n - 1)
+
+void main() {
+  int result = factorial(10);
+  print(result)
+}
+```
 
 ---
 
 ## Quick Start
 
 ```bash
-cargo build
-cargo test
+cargo build          # compile the project
+cargo test           # run the full test suite (129 tests)
+cargo run            # run the sample main program
 ```
 
 ---
 
-## Architecture
+## Documentation
 
-MiniC is organized into these main components:
+Read the documents in order for a complete picture of the project, or jump
+directly to the topic you need.
 
-| Component | Path | Description |
-|-----------|------|-------------|
-| [**AST**](doc/architecture/ast.md) | `src/ir/` | Abstract syntax tree parameterized by phase (unchecked vs checked). Defines `Expr`, `Statement`, `Program`, and type synonyms (`UncheckedProgram`, `CheckedProgram`, etc.). |
-| [**Parser**](doc/architecture/parser.md) | `src/parser/` | Parser combinators using [nom](https://github.com/rust-bakery/nom). Parses literals, expressions, statements, and function declarations into an unchecked AST. |
-| [**Type Checker**](doc/design/type-checker.md) | `src/semantic/` | Consumes unchecked AST, validates types, produces checked AST. Requires `main`; enforces variable declarations and type compatibility. |
-| [**Environment**](doc/architecture/environment.md) | `src/environment/` | Unified parametric symbol table `Environment<V>`. Stores variable and function bindings in one map. Used by both the type checker (`V = Type`) and the interpreter (`V = Value`). |
-| [**Interpreter**](doc/architecture/interpreter.md) | `src/interpreter/` | Tree-walking interpreter. Evaluates expressions and executes statements against `Environment<Value>`. Dispatches user-defined and native functions through the same lookup path. |
-| [**Stdlib**](doc/architecture/stdlib.md) | `src/stdlib/` | Native functions (print, readInt, readFloat, readString, sqrt, pow). Registered via `NativeRegistry`; consumed internally by the type checker and interpreter. |
+| # | File | What you will learn |
+|---|------|---------------------|
+| 1 | [Language reference](docs/01-language.md) | What you can write in MiniC: types, statements, operators |
+| 2 | [Pipeline overview](docs/02-pipeline.md) | How source code travels from text to execution |
+| 3 | [The AST](docs/03-ast.md) | How a MiniC program is represented in memory |
+| 4 | [The parser](docs/04-parser.md) | How source text is turned into an AST |
+| 5 | [The type checker](docs/05-type-checker.md) | How type errors are caught before running |
+| 6 | [The interpreter](docs/06-interpreter.md) | How a type-checked program is executed |
+| 7 | [The standard library](docs/07-stdlib.md) | Built-in functions and how to add new ones |
+| 8 | [Testing](docs/08-testing.md) | How the test suite is organised and how to add tests |
+
+---
+
+## Project Layout
 
 ```
 src/
-├── ir/           # AST (ast.rs)
-├── parser/       # Parser (expressions, statements, functions, literals, identifiers)
-├── semantic/     # Type checker
-├── environment/  # Unified Environment<V>
-├── interpreter/  # Tree-walking interpreter (eval_expr, exec_stmt, value)
-└── stdlib/       # Native function registry (io, math)
+├── ir/           # AST node definitions
+├── parser/       # Source text → unchecked AST
+├── semantic/     # Type checker: unchecked AST → checked AST
+├── environment/  # Shared symbol table used by type checker and interpreter
+├── interpreter/  # Tree-walking interpreter
+└── stdlib/       # Built-in functions (print, sqrt, pow, …)
+
+tests/            # Integration tests (all tests live here)
+docs/             # This documentation
 ```
-
----
-
-## Testing
-
-MiniC uses **integration tests** in the `tests/` directory. All tests use only the public API; there are no `#[cfg(test)]` blocks in source modules.
-
-| Test file | Purpose |
-|-----------|---------|
-| [**parser.rs**](tests/parser.rs) | Parser unit-style tests: literals, identifiers, expressions, statements. Uses inline strings. |
-| [**program.rs**](tests/program.rs) | Full-program parsing from fixture files in `tests/fixtures/`. |
-| [**type_checker.rs**](tests/type_checker.rs) | Semantic tests: parse + type-check, assert on success/failure or typed AST. |
-| [**interpreter.rs**](tests/interpreter.rs) | End-to-end tests: parse + type-check + interpret. Covers arithmetic, control flow, recursion, arrays, and stdlib functions. |
-
-**Run all tests:** `cargo test`
-
-For details on test organization, patterns, and how to add new tests, see [**Test Architecture**](doc/architecture/tests.md).
-
----
-
-## Specifications
-
-Formal specs live under [openspec/specs/](openspec/specs/). Key specs:
-
-- [AST](openspec/specs/ast/spec.md)
-- [Functions](openspec/specs/functions/spec.md)
-- [Arrays](openspec/specs/arrays/spec.md)
-- [Type checker](openspec/specs/type-checker/spec.md)
-- [Unified environment](openspec/specs/unified-environment/spec.md)
-- [Interpreter core](openspec/specs/interpreter-core/spec.md)
-- [Function dispatch](openspec/specs/function-dispatch/spec.md)
-- [Parser documentation](openspec/specs/parser-docs/spec.md)
