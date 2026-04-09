@@ -30,5 +30,15 @@ else
     echo "⚠️  nom not found in cargo cache (build your project first?)"
 fi
 
+## find and tag proptest (if exists)
+PROPTEST_PATH=$(find ~/.cargo/registry/src -type d -name "proptest-*" 2>/dev/null | head -1)
+if [ -n "$PROPTEST_PATH" ]; then
+    echo "Generating proptest tags..."
+    ctags -R --languages=Rust -f proptest.tags "$PROPTEST_PATH/src"
+    echo "✅ Created proptest.tags"
+else
+    echo "⚠️  proptest not found in cargo cache (build your project first?)"
+fi
+
 echo ""
 echo "🎉 Done! Add to Vim: :set tags=./tags,~/rust-stdlib.tags"
